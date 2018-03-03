@@ -4,11 +4,9 @@
   become_method: sudo
 
   vars:
-    mysql_root_pass: dg123NSf2
-    mysql_current_pass: password
+    mysql_root_pass: pass
 
   tasks:
-
     - name: set timezone to Europe/Warsaw
       timezone:
         name: Europe/Warsaw
@@ -23,6 +21,11 @@
       apt:
         update_cache: yes
 
+    - name: Install git
+      apt:
+        name: git
+      tags: git
+
     - name: Set MySQL root password before installing
       debconf: name='mysql-server' question='mysql-server/root_password' value='{{mysql_root_pass | quote}}' vtype='password'
       tags: mysql
@@ -36,11 +39,11 @@
         name: mysql-server
       tags: mysql
 
-    - name: drop mysql current user
-      shell: mysql -u root -p{{ mysql_root_pass }} -e "GRANT USAGE ON *.* TO 'current'@'localhost'; DROP USER 'current'@'localhost';"
+    - name: create database test
+      shell: mysql -u root -p{{ mysql_root_pass }} -e "CREATE DATABASE IF NOT EXISTS test;"
 
-    - name: create database current
-      shell: mysql -u root -p{{ mysql_root_pass }} -e "CREATE DATABASE IF NOT EXISTS current;"
+    - name: clone test_db
+      shell: git clone https://github.com/dgrochowski/test_db.git /home/vagrant/test_db
 
-    - name: create mysql current user
-      shell: mysql -u root -p{{ mysql_root_pass }} -e "GRANT ALL PRIVILEGES ON current.* to 'current'@'localhost' IDENTIFIED BY '{{ mysql_current_pass }}';"
+    - name: import DB
+      shell: cd /home/vagrant/test_db/ && mysql -u root -p{{ mysql_root_pass }} test < employees.sql
