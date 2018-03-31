@@ -21,29 +21,42 @@
       apt:
         update_cache: yes
 
-    - name: Install git
+    - name: install git
       apt:
         name: git
       tags: git
 
-    - name: Set MySQL root password before installing
+    - name: set MySQL root password before installing
       debconf: name='mysql-server' question='mysql-server/root_password' value='{{mysql_root_pass | quote}}' vtype='password'
       tags: mysql
 
-    - name: Confirm MySQL root password before installing
+    - name: confirm MySQL root password before installing
       debconf: name='mysql-server' question='mysql-server/root_password_again' value='{{mysql_root_pass | quote}}' vtype='password'
       tags: mysql
 
     - name: install mysql
       apt:
-        name: mysql-server
-      tags: mysql
-
-    - name: create database test
-      shell: mysql -u root -p{{ mysql_root_pass }} -e "CREATE DATABASE IF NOT EXISTS test;"
+        name: "{{ item }}"
+        state: installed
+      with_items:
+       - mysql-server
+       - python-mysqldb
+       - python-selinux
 
     - name: clone test_db
-      shell: git clone https://github.com/dgrochowski/test_db.git /home/vagrant/test_db
+      git:
+        repo: https://github.com/dgrochowski/test_db.git
+        dest: test_db
+
+    # IMPORTANT - ANSIBLE mysql_db IMPORT REQUIRES RELATIVE PATHS FOR THE SOURCE METHOD
+    - name: move test_db files
+      shell: cp -R test_db/* . && rm -rf test_db
 
     - name: import DB
-      shell: cd /home/vagrant/test_db/ && mysql -u root -p{{ mysql_root_pass }} test < employees.sql
+      mysql_db:
+        login_user: root
+        login_password: "{{ mysql_root_pass }}"
+        config_file: no
+        state: import
+        name: all
+        target: employees.sql
